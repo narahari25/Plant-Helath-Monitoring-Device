@@ -1,0 +1,70 @@
+#include <WiFi.h>
+#include <ThingSpeak.h>
+#include <DHT.h>
+
+const char* ssid = "Neha7";
+const char* password = "porarey.";
+const char* server = "api.thingspeak.com";
+const char* api_key = "7EG4WL4LYM90UKT6";
+const int soilMoisturePin = 2;
+float ph;
+float Value=0;
+
+#define DHTPIN 13 
+#define DHTTYPE DHT11 
+#define potPin A0
+
+DHT dht(DHTPIN, DHTTYPE);
+WiFiClient client;
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+}
+
+void loop() {
+  int soilMoistureValue = analogRead(soilMoisturePin);
+  float moisturePercentage = map(soilMoistureValue, 0, 4095, 0, 100);
+  moisturePercentage = constrain(moisturePercentage, 0, 100);
+
+  WiFi.begin(ssid, password);
+  delay(1000);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi...");
+  ThingSpeak.begin(client);
+Value = analogRead(potPin);
+  Serial.print("Analog Value: ");
+  Serial.print(Value);
+  Serial.print(" | ");
+
+  float voltage = Value * (3.3 / 4095.0);
+  ph = 7 - (voltage - 1.5);
+  Serial.print("pH Value: ");
+  Serial.println(ph);
+  
+  float temperature = dht.readTemperature();
+  if (isnan(temperature)) {
+    Serial.println("Error reading temperature from DHT11");
+  } else {
+    Serial.print("Moisture Percentage: ");
+    Serial.print(moisturePercentage);
+    Serial.println("%");
+    Serial.print("Temperature (C): ");
+    Serial.println(temperature);
+    ThingSpeak.setField(1, moisturePercentage);
+    ThingSpeak.setField(2, temperature);
+    ThingSpeak.setField(3,ph );
+    int response = ThingSpeak.writeFields(2324455, api_key);
+
+    if (response == 200) {
+      Serial.println("Data sent to ThingSpeak successfully.");
+    } else {
+      Serial.println("Error sending data to ThingSpeak.");
+    }
+  }
+
+  WiFi.disconnect(true);
+  delay(10000); 
+  }
